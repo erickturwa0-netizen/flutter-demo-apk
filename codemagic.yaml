@@ -16,6 +16,11 @@ workflows:
       - name: Build APK
         script: |
           flutter build apk --release
+      - name: List build outputs
+        script: |
+          echo "=== Looking for APK files ==="
+          find build -name "*.apk" -type f || true
+          ls -la build/app/outputs/flutter-apk/ || true
     artifacts:
+      - build/app/outputs/flutter-apk/*.apk
       - build/**/outputs/**/*.apk
-      - build/**/outputs/**/*.aab
