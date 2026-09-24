@@ -27,11 +27,11 @@ jobs:
       - name: Enable Flutter Android
         run: flutter config --enable-android
 
+      - name: Accept Android licenses
+        run: yes | flutter doctor --android-licenses || true
+
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Check Flutter doctor
-        run: flutter doctor -v
 
       - name: Build APK (Release)
         run: flutter build apk --release
