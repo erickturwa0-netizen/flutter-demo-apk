@@ -1,7 +1,7 @@
 name: flutter_demo_apk
-description: Mziki, Movie na Game demo app with API endpoints.
+description: Mziki, Movie na Game app - loads real data from public APIs.
 publish_to: 'none'
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  http: ^1.2.2
 
 dev_dependencies:
   flutter_test:

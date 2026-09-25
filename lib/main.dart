@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +34,14 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class MediaItem {
+  final String title;
+  final String subtitle;
+  final String? imageUrl;
+
+  MediaItem({required this.title, required this.subtitle, this.imageUrl});
+}
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -39,138 +49,124 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
+class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
-  late AnimationController _fadeController;
 
-  final List<_Section> _sections = const [
-    _Section(
+  final List<_TabConfig> _tabs = const [
+    _TabConfig(
       title: 'Mziki',
       icon: Icons.music_note_rounded,
       color: Color(0xFFE91E63),
-      endpoints: [
-        _Endpoint('Deezer Chart', 'https://api.deezer.com/chart'),
-        _Endpoint('Deezer Search', 'https://api.deezer.com/search?q=eminem'),
-        _Endpoint('iTunes Search', 'https://itunes.apple.com/search?term=sauti+sol&media=music'),
-        _Endpoint('Audius Tracks', 'https://discoveryprovider.audius.co/v1/tracks/trending'),
-      ],
-      items: [
-        _Item(
-          title: 'Sauti Sol - Suzanna',
-          imageUrl: 'https://picsum.photos/seed/suzanna/200',
-        ),
-        _Item(
-          title: 'Diamond Platnumz - Jeje',
-          imageUrl: 'https://picsum.photos/seed/jeje/200',
-        ),
-        _Item(
-          title: 'Burna Boy - Last Last',
-          imageUrl: 'https://picsum.photos/seed/burna/200',
-        ),
-        _Item(
-          title: 'Beyoncé - Cuff It',
-          imageUrl: 'https://picsum.photos/seed/beyonce/200',
-        ),
-        _Item(
-          title: 'Tems - Free Mind',
-          imageUrl: 'https://picsum.photos/seed/tems/200',
-        ),
-      ],
+      endpoint: 'https://itunes.apple.com/search?term=afrobeats&media=music&limit=20',
     ),
-    _Section(
+    _TabConfig(
       title: 'Movie',
       icon: Icons.movie_rounded,
       color: Color(0xFF00BCD4),
-      endpoints: [
-        _Endpoint('TMDB Popular', 'https://api.themoviedb.org/3/movie/popular'),
-        _Endpoint('TMDB Top Rated', 'https://api.themoviedb.org/3/movie/top_rated'),
-        _Endpoint('OMDb Search', 'https://www.omdbapi.com/?s=batman&apikey=YOUR_KEY'),
-        _Endpoint('TVMaze Shows', 'https://api.tvmaze.com/shows'),
-      ],
-      items: [
-        _Item(
-          title: 'Inception (2010)',
-          imageUrl: 'https://picsum.photos/seed/inception/200',
-        ),
-        _Item(
-          title: 'The Dark Knight (2008)',
-          imageUrl: 'https://picsum.photos/seed/darkknight/200',
-        ),
-        _Item(
-          title: 'Black Panther (2018)',
-          imageUrl: 'https://picsum.photos/seed/blackpanther/200',
-        ),
-        _Item(
-          title: 'Avatar: The Way of Water',
-          imageUrl: 'https://picsum.photos/seed/avatar/200',
-        ),
-        _Item(
-          title: 'Oppenheimer (2023)',
-          imageUrl: 'https://picsum.photos/seed/oppenheimer/200',
-        ),
-      ],
+      endpoint: 'https://api.tvmaze.com/shows',
     ),
-    _Section(
+    _TabConfig(
       title: 'Game',
       icon: Icons.sports_esports_rounded,
       color: Color(0xFF4CAF50),
-      endpoints: [
-        _Endpoint('FreeToGame All', 'https://www.freetogame.com/api/games'),
-        _Endpoint('FreeToGame PC', 'https://www.freetogame.com/api/games?platform=pc'),
-        _Endpoint('FreeToGame Browser', 'https://www.freetogame.com/api/games?platform=browser'),
-        _Endpoint('RAWG Games', 'https://api.rawg.io/api/games'),
-      ],
-      items: [
-        _Item(
-          title: 'Genshin Impact',
-          imageUrl: 'https://picsum.photos/seed/genshin/200',
-        ),
-        _Item(
-          title: 'Fortnite',
-          imageUrl: 'https://picsum.photos/seed/fortnite/200',
-        ),
-        _Item(
-          title: 'Call of Duty: Warzone',
-          imageUrl: 'https://picsum.photos/seed/warzone/200',
-        ),
-        _Item(
-          title: 'Valorant',
-          imageUrl: 'https://picsum.photos/seed/valorant/200',
-        ),
-        _Item(
-          title: 'League of Legends',
-          imageUrl: 'https://picsum.photos/seed/lol/200',
-        ),
-      ],
+      endpoint: 'https://www.freetogame.com/api/games',
     ),
   ];
+
+  // Cache data per tab
+  final Map<int, List<MediaItem>> _cache = {};
+  final Map<int, bool> _loading = {0: false, 1: false, 2: false};
+  final Map<int, String?> _error = {0: null, 1: null, 2: null};
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    )..forward();
+    _loadData(0);
   }
 
-  @override
-  void dispose() {
-    _fadeController.dispose();
-    super.dispose();
+  Future<void> _loadData(int index) async {
+    if (_cache.containsKey(index) || (_loading[index] ?? false)) return;
+
+    setState(() {
+      _loading[index] = true;
+      _error[index] = null;
+    });
+
+    try {
+      final config = _tabs[index];
+      final response = await http.get(Uri.parse(config.endpoint)).timeout(
+            const Duration(seconds: 15),
+          );
+
+      if (response.statusCode != 200) {
+        throw Exception('Status ${response.statusCode}');
+      }
+
+      final List<MediaItem> items = [];
+      final body = jsonDecode(response.body);
+
+      if (index == 0) {
+        // iTunes Music
+        final results = body['results'] as List? ?? [];
+        for (final r in results) {
+          items.add(MediaItem(
+            title: r['trackName']?.toString() ?? r['collectionName']?.toString() ?? 'Unknown',
+            subtitle: r['artistName']?.toString() ?? '',
+            imageUrl: r['artworkUrl100']?.toString().replaceAll('100x100', '200x200'),
+          ));
+        }
+      } else if (index == 1) {
+        // TVMaze Shows (as movies/series)
+        final results = body as List? ?? [];
+        for (final r in results.take(25)) {
+          final image = r['image'];
+          items.add(MediaItem(
+            title: r['name']?.toString() ?? 'Unknown',
+            subtitle: r['genres'] is List
+                ? (r['genres'] as List).join(', ')
+                : (r['type']?.toString() ?? ''),
+            imageUrl: image is Map ? image['medium']?.toString() : null,
+          ));
+        }
+      } else {
+        // FreeToGame
+        final results = body as List? ?? [];
+        for (final r in results.take(30)) {
+          items.add(MediaItem(
+            title: r['title']?.toString() ?? 'Unknown',
+            subtitle: r['genre']?.toString() ?? r['platform']?.toString() ?? '',
+            imageUrl: r['thumbnail']?.toString(),
+          ));
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _cache[index] = items;
+          _loading[index] = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error[index] = e.toString();
+          _loading[index] = false;
+        });
+      }
+    }
   }
 
   void _onTabTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-      _fadeController.reset();
-      _fadeController.forward();
-    });
+    setState(() => _currentIndex = index);
+    _loadData(index);
   }
 
   @override
   Widget build(BuildContext context) {
-    final section = _sections[_currentIndex];
+    final tab = _tabs[_currentIndex];
+    final items = _cache[_currentIndex] ?? [];
+    final isLoading = _loading[_currentIndex] ?? false;
+    final error = _error[_currentIndex];
 
     return Scaffold(
       body: Container(
@@ -180,7 +176,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             end: Alignment.bottomRight,
             colors: [
               const Color(0xFF1A1A2E),
-              section.color.withOpacity(0.25),
+              tab.color.withOpacity(0.22),
               const Color(0xFF16213E),
             ],
           ),
@@ -188,98 +184,170 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: SafeArea(
           child: Column(
             children: [
+              // Header
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: section.color.withOpacity(0.2),
+                        color: tab.color.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: Icon(section.icon, color: section.color, size: 28),
+                      child: Icon(tab.icon, color: tab.color, size: 28),
                     ),
                     const SizedBox(width: 14),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          section.title,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tab.title,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Endpoints & Orodha',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white.withOpacity(0.6),
+                          Text(
+                            'Data kutoka API',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white.withOpacity(0.55),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    if (!isLoading)
+                      IconButton(
+                        onPressed: () {
+                          _cache.remove(_currentIndex);
+                          _loadData(_currentIndex);
+                        },
+                        icon: Icon(Icons.refresh_rounded, color: tab.color),
+                      ),
                   ],
                 ),
               ),
-              Expanded(
-                child: FadeTransition(
-                  opacity: _fadeController,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+
+              // Endpoint badge
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: tab.color.withOpacity(0.3)),
+                  ),
+                  child: Row(
                     children: [
-                      _buildSectionTitle('API Endpoints', Icons.link_rounded),
-                      const SizedBox(height: 10),
-                      ...section.endpoints.asMap().entries.map((entry) {
-                        return TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0, end: 1),
-                          duration: Duration(milliseconds: 300 + (entry.key * 80)),
-                          curve: Curves.easeOutCubic,
-                          builder: (context, value, child) {
-                            return Transform.translate(
-                              offset: Offset(0, 20 * (1 - value)),
-                              child: Opacity(opacity: value, child: child),
-                            );
-                          },
-                          child: _EndpointCard(
-                            endpoint: entry.value,
-                            accent: section.color,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: tab.color.withOpacity(0.25),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'GET',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: tab.color,
                           ),
-                        );
-                      }),
-                      const SizedBox(height: 24),
-                      _buildSectionTitle(
-                        section.title == 'Mziki'
-                            ? 'Nyimbo Maarufu'
-                            : section.title == 'Movie'
-                                ? 'Filamu Maarufu'
-                                : 'Michezo Maarufu',
-                        Icons.star_rounded,
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                      ...section.items.asMap().entries.map((entry) {
-                        return TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0, end: 1),
-                          duration: Duration(milliseconds: 350 + (entry.key * 70)),
-                          curve: Curves.easeOutCubic,
-                          builder: (context, value, child) {
-                            return Transform.translate(
-                              offset: Offset(30 * (1 - value), 0),
-                              child: Opacity(opacity: value, child: child),
-                            );
-                          },
-                          child: _ItemCard(
-                            index: entry.key + 1,
-                            item: entry.value,
-                            accent: section.color,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          tab.endpoint,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white.withOpacity(0.5),
+                            fontFamily: 'monospace',
                           ),
-                        );
-                      }),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                 ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Content
+              Expanded(
+                child: isLoading
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: tab.color),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Inapakia ${tab.title.toLowerCase()}...',
+                              style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                            ),
+                          ],
+                        ),
+                      )
+                    : error != null
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.cloud_off_rounded, size: 48, color: tab.color.withOpacity(0.6)),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Imeshindwa kupakia data',
+                                    style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    error,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      _cache.remove(_currentIndex);
+                                      _loadData(_currentIndex);
+                                    },
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('Jaribu tena'),
+                                    style: ElevatedButton.styleFrom(backgroundColor: tab.color),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : items.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'Hakuna data',
+                                  style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                                itemCount: items.length,
+                                itemBuilder: (context, i) {
+                                  final item = items[i];
+                                  return _MediaCard(
+                                    index: i + 1,
+                                    item: item,
+                                    accent: tab.color,
+                                  );
+                                },
+                              ),
               ),
             ],
           ),
@@ -299,141 +367,42 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: NavigationBar(
           height: 70,
           backgroundColor: Colors.transparent,
-          indicatorColor: section.color.withOpacity(0.25),
+          indicatorColor: tab.color.withOpacity(0.25),
           selectedIndex: _currentIndex,
           onDestinationSelected: _onTabTapped,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: _sections.map((s) {
+          destinations: _tabs.map((t) {
             return NavigationDestination(
-              icon: Icon(s.icon, color: Colors.white54),
-              selectedIcon: Icon(s.icon, color: s.color),
-              label: s.title,
+              icon: Icon(t.icon, color: Colors.white54),
+              selectedIcon: Icon(t.icon, color: t.color),
+              label: t.title,
             );
           }).toList(),
         ),
       ),
     );
   }
-
-  Widget _buildSectionTitle(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: Colors.white70),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.white70,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ],
-    );
-  }
 }
 
-class _Section {
+class _TabConfig {
   final String title;
   final IconData icon;
   final Color color;
-  final List<_Endpoint> endpoints;
-  final List<_Item> items;
+  final String endpoint;
 
-  const _Section({
+  const _TabConfig({
     required this.title,
     required this.icon,
     required this.color,
-    required this.endpoints,
-    required this.items,
+    required this.endpoint,
   });
 }
 
-class _Endpoint {
-  final String name;
-  final String url;
-
-  const _Endpoint(this.name, this.url);
-}
-
-class _Item {
-  final String title;
-  final String imageUrl;
-
-  const _Item({required this.title, required this.imageUrl});
-}
-
-class _EndpointCard extends StatelessWidget {
-  final _Endpoint endpoint;
-  final Color accent;
-
-  const _EndpointCard({required this.endpoint, required this.accent});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: accent.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: accent.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  'GET',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: accent,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  endpoint.name,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SelectableText(
-            endpoint.url,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withOpacity(0.55),
-              fontFamily: 'monospace',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ItemCard extends StatelessWidget {
+class _MediaCard extends StatelessWidget {
   final int index;
-  final _Item item;
+  final MediaItem item;
   final Color accent;
 
-  const _ItemCard({
+  const _MediaCard({
     required this.index,
     required this.item,
     required this.accent,
@@ -450,71 +419,73 @@ class _ItemCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Image
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: Image.network(
-              item.imageUrl,
-              width: 56,
-              height: 56,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 56,
-                height: 56,
-                color: accent.withOpacity(0.25),
-                child: Icon(Icons.image, color: accent, size: 28),
-              ),
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  width: 56,
-                  height: 56,
-                  color: accent.withOpacity(0.15),
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: accent,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+            child: item.imageUrl != null
+                ? Image.network(
+                    item.imageUrl!,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _placeholder(),
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return Container(
+                        width: 60,
+                        height: 60,
+                        color: accent.withOpacity(0.15),
+                        child: Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: accent),
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : _placeholder(),
           ),
           const SizedBox(width: 12),
-          // Number + Title
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   '#$index',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: accent,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 11, color: accent, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   item.title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 2,
+                  style: const TextStyle(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w600),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (item.subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    item.subtitle,
+                    style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.5)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: Colors.white.withOpacity(0.3)),
+          Icon(Icons.chevron_right_rounded, color: Colors.white.withOpacity(0.25)),
         ],
       ),
+    );
+  }
+
+  Widget _placeholder() {
+    return Container(
+      width: 60,
+      height: 60,
+      color: accent.withOpacity(0.2),
+      child: Icon(Icons.image, color: accent, size: 28),
     );
   }
 }
