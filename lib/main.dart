@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
   runApp(const MyApp());
 }
 
@@ -10,66 +18,424 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo APK',
+      title: 'Mziki · Movie · Game',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF6C63FF),
+          brightness: Brightness.dark,
+        ),
         useMaterial3: true,
+        fontFamily: 'Roboto',
       ),
-      home: const MyHomePage(title: 'Flutter Demo APK'),
+      home: const HomePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
+  int _currentIndex = 0;
+  late AnimationController _fadeController;
 
-  void _incrementCounter() {
+  final List<_Section> _sections = const [
+    _Section(
+      title: 'Muziki',
+      icon: Icons.music_note_rounded,
+      color: Color(0xFFE91E63),
+      endpoints: [
+        _Endpoint('Deezer Chart', 'https://api.deezer.com/chart'),
+        _Endpoint('Deezer Search', 'https://api.deezer.com/search?q=eminem'),
+        _Endpoint('iTunes Search', 'https://itunes.apple.com/search?term=sauti+sol&media=music'),
+        _Endpoint('Audius Tracks', 'https://discoveryprovider.audius.co/v1/tracks/trending'),
+      ],
+      items: [
+        'Sauti Sol - Suzanna',
+        'Diamond Platnumz - Jeje',
+        'Burna Boy - Last Last',
+        'Beyoncé - Cuff It',
+        'Tems - Free Mind',
+      ],
+    ),
+    _Section(
+      title: 'Movie',
+      icon: Icons.movie_rounded,
+      color: Color(0xFF00BCD4),
+      endpoints: [
+        _Endpoint('TMDB Popular', 'https://api.themoviedb.org/3/movie/popular'),
+        _Endpoint('TMDB Top Rated', 'https://api.themoviedb.org/3/movie/top_rated'),
+        _Endpoint('OMDb Search', 'https://www.omdbapi.com/?s=batman&apikey=YOUR_KEY'),
+        _Endpoint('TVMaze Shows', 'https://api.tvmaze.com/shows'),
+      ],
+      items: [
+        'Inception (2010)',
+        'The Dark Knight (2008)',
+        'Black Panther (2018)',
+        'Avatar: The Way of Water',
+        'Oppenheimer (2023)',
+      ],
+    ),
+    _Section(
+      title: 'Game',
+      icon: Icons.sports_esports_rounded,
+      color: Color(0xFF4CAF50),
+      endpoints: [
+        _Endpoint('FreeToGame All', 'https://www.freetogame.com/api/games'),
+        _Endpoint('FreeToGame PC', 'https://www.freetogame.com/api/games?platform=pc'),
+        _Endpoint('FreeToGame Browser', 'https://www.freetogame.com/api/games?platform=browser'),
+        _Endpoint('RAWG Games', 'https://api.rawg.io/api/games'),
+      ],
+      items: [
+        'Genshin Impact',
+        'Fortnite',
+        'Call of Duty: Warzone',
+        'Valorant',
+        'League of Legends',
+      ],
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  void _onTabTapped(int index) {
     setState(() {
-      _counter++;
+      _currentIndex = index;
+      _fadeController.reset();
+      _fadeController.forward();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final section = _sections[_currentIndex];
+
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF1A1A2E),
+              section.color.withOpacity(0.25),
+              const Color(0xFF16213E),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: section.color.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(section.icon, color: section.color, size: 28),
+                    ),
+                    const SizedBox(width: 14),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          section.title,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'Endpoints & Orodha',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.white.withOpacity(0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content with fade animation
+              Expanded(
+                child: FadeTransition(
+                  opacity: _fadeController,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                    children: [
+                      // Endpoints section
+                      _buildSectionTitle('API Endpoints', Icons.link_rounded),
+                      const SizedBox(height: 10),
+                      ...section.endpoints.asMap().entries.map((entry) {
+                        return TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: 1),
+                          duration: Duration(milliseconds: 300 + (entry.key * 80)),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, value, child) {
+                            return Transform.translate(
+                              offset: Offset(0, 20 * (1 - value)),
+                              child: Opacity(opacity: value, child: child),
+                            );
+                          },
+                          child: _EndpointCard(
+                            endpoint: entry.value,
+                            accent: section.color,
+                          ),
+                        );
+                      }),
+
+                      const SizedBox(height: 24),
+
+                      // Items section
+                      _buildSectionTitle(
+                        section.title == 'Muziki'
+                            ? 'Nyimbo Maarufu'
+                            : section.title == 'Movie'
+                                ? 'Filamu Maarufu'
+                                : 'Michezo Maarufu',
+                        Icons.star_rounded,
+                      ),
+                      const SizedBox(height: 10),
+                      ...section.items.asMap().entries.map((entry) {
+                        return TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: 1),
+                          duration: Duration(milliseconds: 350 + (entry.key * 70)),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, value, child) {
+                            return Transform.translate(
+                              offset: Offset(30 * (1 - value), 0),
+                              child: Opacity(opacity: value, child: child),
+                            );
+                          },
+                          child: _ItemCard(
+                            index: entry.key + 1,
+                            title: entry.value,
+                            accent: section.color,
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'Umebonyeza button mara ngapi:',
-              style: TextStyle(fontSize: 18),
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Hii ni demo app ya Flutter.\nUnaweza kujenga APK online!',
-              textAlign: TextAlign.center,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F0F1A),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
             ),
           ],
         ),
+        child: NavigationBar(
+          height: 70,
+          backgroundColor: Colors.transparent,
+          indicatorColor: section.color.withOpacity(0.25),
+          selectedIndex: _currentIndex,
+          onDestinationSelected: _onTabTapped,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: _sections.map((s) {
+            return NavigationDestination(
+              icon: Icon(s.icon, color: Colors.white54),
+              selectedIcon: Icon(s.icon, color: s.color),
+              label: s.title,
+            );
+          }).toList(),
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Ongeza',
-        child: const Icon(Icons.add),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: Colors.white70),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.white70,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Section {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final List<_Endpoint> endpoints;
+  final List<String> items;
+
+  const _Section({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.endpoints,
+    required this.items,
+  });
+}
+
+class _Endpoint {
+  final String name;
+  final String url;
+
+  const _Endpoint(this.name, this.url);
+}
+
+class _EndpointCard extends StatelessWidget {
+  final _Endpoint endpoint;
+  final Color accent;
+
+  const _EndpointCard({required this.endpoint, required this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'GET',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: accent,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  endpoint.name,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SelectableText(
+            endpoint.url,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.55),
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ItemCard extends StatelessWidget {
+  final int index;
+  final String title;
+  final Color accent;
+
+  const _ItemCard({
+    required this.index,
+    required this.title,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: accent.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'index',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: accent,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: Colors.white.withOpacity(0.3)),
+        ],
       ),
     );
   }
