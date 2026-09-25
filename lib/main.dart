@@ -26,7 +26,6 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
-        fontFamily: 'Roboto',
       ),
       home: const HomePage(),
     );
@@ -56,11 +55,26 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _Endpoint('Audius Tracks', 'https://discoveryprovider.audius.co/v1/tracks/trending'),
       ],
       items: [
-        'Sauti Sol - Suzanna',
-        'Diamond Platnumz - Jeje',
-        'Burna Boy - Last Last',
-        'Beyoncé - Cuff It',
-        'Tems - Free Mind',
+        _Item(
+          title: 'Sauti Sol - Suzanna',
+          imageUrl: 'https://picsum.photos/seed/suzanna/200',
+        ),
+        _Item(
+          title: 'Diamond Platnumz - Jeje',
+          imageUrl: 'https://picsum.photos/seed/jeje/200',
+        ),
+        _Item(
+          title: 'Burna Boy - Last Last',
+          imageUrl: 'https://picsum.photos/seed/burna/200',
+        ),
+        _Item(
+          title: 'Beyoncé - Cuff It',
+          imageUrl: 'https://picsum.photos/seed/beyonce/200',
+        ),
+        _Item(
+          title: 'Tems - Free Mind',
+          imageUrl: 'https://picsum.photos/seed/tems/200',
+        ),
       ],
     ),
     _Section(
@@ -74,11 +88,26 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _Endpoint('TVMaze Shows', 'https://api.tvmaze.com/shows'),
       ],
       items: [
-        'Inception (2010)',
-        'The Dark Knight (2008)',
-        'Black Panther (2018)',
-        'Avatar: The Way of Water',
-        'Oppenheimer (2023)',
+        _Item(
+          title: 'Inception (2010)',
+          imageUrl: 'https://picsum.photos/seed/inception/200',
+        ),
+        _Item(
+          title: 'The Dark Knight (2008)',
+          imageUrl: 'https://picsum.photos/seed/darkknight/200',
+        ),
+        _Item(
+          title: 'Black Panther (2018)',
+          imageUrl: 'https://picsum.photos/seed/blackpanther/200',
+        ),
+        _Item(
+          title: 'Avatar: The Way of Water',
+          imageUrl: 'https://picsum.photos/seed/avatar/200',
+        ),
+        _Item(
+          title: 'Oppenheimer (2023)',
+          imageUrl: 'https://picsum.photos/seed/oppenheimer/200',
+        ),
       ],
     ),
     _Section(
@@ -92,11 +121,26 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _Endpoint('RAWG Games', 'https://api.rawg.io/api/games'),
       ],
       items: [
-        'Genshin Impact',
-        'Fortnite',
-        'Call of Duty: Warzone',
-        'Valorant',
-        'League of Legends',
+        _Item(
+          title: 'Genshin Impact',
+          imageUrl: 'https://picsum.photos/seed/genshin/200',
+        ),
+        _Item(
+          title: 'Fortnite',
+          imageUrl: 'https://picsum.photos/seed/fortnite/200',
+        ),
+        _Item(
+          title: 'Call of Duty: Warzone',
+          imageUrl: 'https://picsum.photos/seed/warzone/200',
+        ),
+        _Item(
+          title: 'Valorant',
+          imageUrl: 'https://picsum.photos/seed/valorant/200',
+        ),
+        _Item(
+          title: 'League of Legends',
+          imageUrl: 'https://picsum.photos/seed/lol/200',
+        ),
       ],
     ),
   ];
@@ -228,7 +272,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           },
                           child: _ItemCard(
                             index: entry.key + 1,
-                            title: entry.value,
+                            item: entry.value,
                             accent: section.color,
                           ),
                         );
@@ -295,7 +339,7 @@ class _Section {
   final IconData icon;
   final Color color;
   final List<_Endpoint> endpoints;
-  final List<String> items;
+  final List<_Item> items;
 
   const _Section({
     required this.title,
@@ -311,6 +355,13 @@ class _Endpoint {
   final String url;
 
   const _Endpoint(this.name, this.url);
+}
+
+class _Item {
+  final String title;
+  final String imageUrl;
+
+  const _Item({required this.title, required this.imageUrl});
 }
 
 class _EndpointCard extends StatelessWidget {
@@ -379,52 +430,86 @@ class _EndpointCard extends StatelessWidget {
 
 class _ItemCard extends StatelessWidget {
   final int index;
-  final String title;
+  final _Item item;
   final Color accent;
 
   const _ItemCard({
     required this.index,
-    required this.title,
+    required this.item,
     required this.accent,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: accent.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              '$index',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: accent,
-                fontSize: 13,
+          // Image
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(
+              item.imageUrl,
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 56,
+                height: 56,
+                color: accent.withOpacity(0.25),
+                child: Icon(Icons.image, color: accent, size: 28),
               ),
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  width: 56,
+                  height: 56,
+                  color: accent.withOpacity(0.15),
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: accent,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(width: 12),
+          // Number + Title
           Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 15,
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '#$index',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: accent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  item.title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
           Icon(Icons.chevron_right_rounded, color: Colors.white.withOpacity(0.3)),
