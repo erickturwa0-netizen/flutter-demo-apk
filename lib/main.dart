@@ -46,7 +46,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   final List<_Section> _sections = const [
     _Section(
-      title: 'Muziki',
+      title: 'Mziki',
       icon: Icons.music_note_rounded,
       color: Color(0xFFE91E63),
       endpoints: [
@@ -144,7 +144,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: SafeArea(
           child: Column(
             children: [
-              // Header
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: Row(
@@ -181,15 +180,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ],
                 ),
               ),
-
-              // Content with fade animation
               Expanded(
                 child: FadeTransition(
                   opacity: _fadeController,
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                     children: [
-                      // Endpoints section
                       _buildSectionTitle('API Endpoints', Icons.link_rounded),
                       const SizedBox(height: 10),
                       ...section.endpoints.asMap().entries.map((entry) {
@@ -209,12 +205,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ),
                         );
                       }),
-
                       const SizedBox(height: 24),
-
-                      // Items section
                       _buildSectionTitle(
-                        section.title == 'Muziki'
+                        section.title == 'Mziki'
                             ? 'Nyimbo Maarufu'
                             : section.title == 'Movie'
                                 ? 'Filamu Maarufu'
@@ -415,7 +408,7 @@ class _ItemCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              'index',
+              '$index',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: accent,
